@@ -23,6 +23,14 @@ global {
 species human skills:[moving] {
 	rgb color <- #yellow;
 	float size <- 2.0#m;
+	//building living_place;
+	//building working_place;
+	int age;
+	bool is_sick <- false;
+	
+	reflex do_die when: flip(0.1 + 0.2*int(is_sick)) {
+		do die;
+	}
 	
 	
 	aspect default {
@@ -35,7 +43,8 @@ species human skills:[moving] {
 }
 
 grid mosquito_cell width:50 height:50{
-	rgb color <- #lime;
+	int nb_mosquitoes <- 50+rnd(100);
+	rgb color <- blend(#white, #red, nb_mosquitoes/150);
 }
 
 experiment main_experiment type:gui {
