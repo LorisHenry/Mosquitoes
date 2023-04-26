@@ -9,19 +9,38 @@
 model Mosquitoes
 
 global {
-	float world_size parameter:true category:"World"<- 10.0#km;
+	float world_size parameter:true category:"World"<- 100#m;
 	geometry shape <- square(world_size);
-	int nb_people parameter:true category:"People"<- 100;
+	int nb_people parameter:true category:"People"<- 10;
+	int nb_lakes parameter: true category: "World" <- 1;
+	field cell <- field(100, 100);
+	
 	
 	init {
 		create human number: nb_people;
+		create lake number:nb_lakes;
 	}
 	
 	
 }
 
+species lake {
+	int mosquitoes_birth_rate <- 10;
+	float size <- rnd(10.0, 100.0);
+	geometry shape <- circle(size);
+	list cells_in_lake <- cells_in(cell, shape);
+	
+	aspect default {
+		draw shape color: #blue border:#black;
+	}
+	
+	reflex birth {
+		
+	}
+}
+
 species human skills:[moving] {
-	rgb color <- #yellow;
+	rgb color <- is_sick ? #green : #yellow;
 	float size <- 2.0#m;
 	//building living_place;
 	//building working_place;
@@ -42,16 +61,14 @@ species human skills:[moving] {
 	}
 }
 
-grid mosquito_cell width:50 height:50{
-	int nb_mosquitoes <- 50+rnd(100);
-	rgb color <- blend(#white, #red, nb_mosquitoes/150);
-}
+
 
 experiment main_experiment type:gui {
 	output {
 		display main_display {
-			grid mosquito_cell border:#black;
-			species human aspect:large;
+			
+			species human aspect:default;
+			
 			
 			
 		}
