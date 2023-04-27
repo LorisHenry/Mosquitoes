@@ -13,19 +13,21 @@ global {
 	geometry shape <- square(world_size);
 	int nb_people parameter:true category:"People"<- 10;
 	int nb_lakes parameter: true category: "World" <- 1;
-	field cell <- field(10, 10, -1.0, 0.0) ;
+	field cell <- field(100, 100);
 	list<point> cells_location <-  cell cells_in world.shape collect each.location;
 	
 	
 	init {
 		create human number: nb_people;
 		create lake number:nb_lakes;
-		loop i over: cells_location {
-			write i;
-			cell[i] <- rnd(1.0, 100.0);
-		}
+		
 	}
 	reflex mosquito_pop_evolution {
+		diffuse var: mosquito_population on:cell proportion:100.0 ;
+		
+		
+		cell <- cell * 0.9;
+		
 		
 	}
 	
@@ -39,11 +41,13 @@ species lake {
 	list<geometry> cells_in_lake <- cells_in(cell, shape);
 	list<point> cells_in_lake_location <- cells_in_lake collect each.location;
 	
+	
 	aspect default {
 		draw shape color: #blue border:#black;
 	}
 	
 	reflex birth {
+		write cells_in_lake;
 		loop i over: cells_in_lake_location {
 			cell[i] <- cell[i] + mosquitoes_birth_rate;
 		}
@@ -79,16 +83,18 @@ species human skills:[moving] {
 
 
 experiment main_experiment type:gui {
-	list<rgb> pal <- palette([ #black, #green, #yellow, #orange, #orange, #red, #red, #red]);
+	list<rgb> pal <- palette([ #white, #red]);
 	output {
-		display main_display type:2d{
+		display main_display type:3d{
 			
 			species human aspect:large;
-			species lake aspect: default;
+			
 			mesh cell scale:0.0 color:pal above: 0.8;
+			species lake aspect: default transparency:0.5;
 					
 			
 		}
+		
 	}
 }
 
