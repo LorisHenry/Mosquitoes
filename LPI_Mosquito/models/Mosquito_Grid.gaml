@@ -95,6 +95,9 @@ global {
 			loop lak over: lakes {
 				create lake {
 					shape <- lak.shape;
+					ask lak {
+						do die;
+					}
 					
 				}
 			}
