@@ -40,8 +40,9 @@ global {
 	date starting_date <- date("2019-09-01 00:00:00");
 	
 	//
-	string experiment_type <- "GIS" parameter:true category: "World";
-	geometry shape <- envelope (shape_file_buildings);
+	string experiment_type <-  nil parameter:true category: "World";
+	geometry shape <- envelope(shape_file_buildings);
+	
 	
 	//
 	file road_file <- file("../includes/road.shp");
@@ -65,13 +66,16 @@ global {
 	init {
 		
 		
+		
 		if experiment_type = "grid" {
+			write "hello";
 			create lake number:nb_lakes;
 			create human_grid number: nb_people;
-			geometry shape <- square(world_size);
+			
 			
 		}
 		if experiment_type = "GIS" {
+			
 			
 			step <- 1#mn;
 			create road from: shape_file_roads;
@@ -81,10 +85,19 @@ global {
 			if type = "farm" {color<-#green;}
 			if type = "lake" {color <- # blue;}
 			if type = "f_building" {color <- #red;}}
+			
+			
 		
 			list<building> residential_building <- building where (each.type="way");
 		
 			list<building> industrial_building <- building where (each.type="farm");
+			list<building> lakes <- building where (each.type="lake");
+			loop lak over: lakes {
+				create lake {
+					shape <- lak.shape;
+					
+				}
+			}
 			
 			create human number: nb_people{
 			location<-any_location_in(one_of(residential_building));
@@ -344,7 +357,7 @@ species human_grid skills:[moving] {
 experiment mytrafficmodel1 type: gui {
 	/** Insert here the definition of the input and output of the model */
 //	float minimum_cycle_duration <- 0.04;
-	string experiment_type <- "GIS";
+	parameter "Paramètre d'expérience" var: experiment_type <- "GIS";
 	
 	parameter "Shapefile for buildings:" var: shape_file_buildings category: "GIS";
 	parameter "Shapefile for roads:" var: shape_file_roads category: "GIS";
