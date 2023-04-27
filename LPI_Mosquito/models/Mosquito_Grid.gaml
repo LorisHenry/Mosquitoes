@@ -11,7 +11,7 @@ model Mosquitoes
 global {
 	
 	
-	
+	 
 	float world_size parameter:true category:"World"min:100#m max:10#km<- 100#m;
 	
 	int nb_people parameter:true category:"People" min:1 max: 200<- 100;
@@ -41,7 +41,7 @@ global {
 	
 	//
 	string experiment_type <-  nil parameter:true category: "World";
-	geometry shape <- envelope(shape_file_buildings);
+	//geometry shape <- envelope(shape_file_buildings);
 	
 	
 	//
@@ -55,6 +55,17 @@ global {
 		return 2*(1/(1+exp(-x/sickness_factor)) - 1/2);
 	}
 	
+	
+	
+	bool people_far_from_lake_hate_net parameter:true category: "Nets"<- false;
+	float exponential_lambda;// to discuss its meaning later
+	
+	bool people_act_sin_from_the_lake parameter:true category: "Nets"<- false;
+	float wave_length <- 1#km;// the wave length 
+	float initial_phase <- 0.0;// it's phi in cos(2*pi/lambda * x + phi);
+	
+	bool people_keep_net_to_deal_with_mosquito parameter:true category: "Nets" <- false;
+	float killing_rate parameter:true category: "Nets" min:0.0 max:1.0 <- 0.5;
 	
 	
 	
@@ -102,6 +113,15 @@ global {
 				}
 			}
 			
+			loop b over:building
+			{
+				loop lak over:lakes
+				{
+					add (b distance_to lak) to:b.distance_from_lakes;
+				}
+				b.nearest_lake_distance <- min(b.distance_from_lakes);
+			}
+			
 			create human number: nb_people{
 			location<-any_location_in(one_of(residential_building));
 			speed <- rnd(min_speed, max_speed);
@@ -127,13 +147,53 @@ species road{
 		draw shape color:color;
 	}
 }
-species building{
+
+species building {
 	string type;
-	rgb color <- #gray;
+	rgb color <- #grey;
+	int net_type <- 1; //not to be used currently!
 	
-	aspect base{
-		draw shape color:color;
+	
+	bool has_net <- true;
+	float probabilty_of_keeping_the_net <- 1.0;
+	
+	
+	list<float> distance_from_lakes;
+	float nearest_lake_distance;
+	
+	
+	reflex lose_net when:has_net
+	{
+		if(people_far_from_lake_hate_net and nearest_lake_distance != 0.0){
+			probabilty_of_keeping_the_net <- probabilty_of_keeping_the_net * (1 - exp(-1.0*cycle/nearest_lake_distance));	
+		}
+		if(people_act_sin_from_the_lake){
+			probabilty_of_keeping_the_net <- probabilty_of_keeping_the_net * cos((2.0*#pi/wave_length)*nearest_lake_distance + initial_phase);
+			
+		}
+		//if(people_keep_net_to_deal_with_mosquito){
+		//	mosquito_craming	
+		//}
+		
+		
+		
+		has_net <- flip(probabilty_of_keeping_the_net);
 	}
+	
+	mosquito_cell mycell update: first(mosquito_cell intersecting shape);
+	
+	reflex kill_mosquitoes when: has_net {
+		mycell.nb_mosquitoes <- mycell.nb_mosquitoes * (1-killing_rate);
+		//mycell.nb_mosquitoes <- max(0, mycell.nb_mosquitoes  - )
+	}
+	
+		
+	aspect base {
+		draw shape color:color;
+		
+	}
+
+
 }
 
 
@@ -209,18 +269,23 @@ species human skills:[moving] {
 	int end_work;
 	string objective;
 	point the_target <- nil;
+	int age;
+	bool is_sick <- false;
+	bool is_alive <- true;
+	bool is_cured <- false;
 	
-	reflex time_to_work when: current_date.hour = start_work and objective = "resting"{
+	
+	reflex time_to_work when: current_date.hour = start_work and objective = "resting" and is_alive {
 		objective <- "working";
 		the_target <- any_location_in(working_place);
 	}
 	
-	reflex time_to_go_home when: current_date.hour = end_work and objective = "working"{
+	reflex time_to_go_home when: current_date.hour = end_work and objective = "working"  and is_alive {
 		objective <- "resting";
 		the_target <- any_location_in(living_place);
 	}
 	
-	reflex move when: the_target != nil{
+	reflex move when: the_target != nil  and is_alive {
 		do goto target: the_target on: the_graph;
 		
 		if the_target = location{
@@ -235,15 +300,8 @@ species human skills:[moving] {
 	
 	
 	
-	
-	
 	//building living_place;
 	//building working_place;
-	int age;
-	bool is_sick <- false;
-	bool is_alive <- true;
-	bool is_cured <- false;
-	
 	
 	
 	reflex be_sick when: flip(world.logistic_sick(mycell.nb_mosquitoes)) and !is_sick and !is_cured{
@@ -295,7 +353,7 @@ species human skills:[moving] {
 species human_grid skills:[moving] {
 	
 	
-	rgb color update: is_alive ? (is_sick ? #red : (is_cured ? #blue : #green)) : #black;
+	rgb color update: is_alive ? (is_sick ? #red : (is_cured ? #blue : #green)) : #transparent;
 	float size <- 2.0#m;
 	mosquito_cell mycell update: first(mosquito_cell intersecting shape);
 	int sick_counter <- 0;
@@ -357,37 +415,108 @@ species human_grid skills:[moving] {
 
 
 
-experiment mytrafficmodel1 type: gui {
-	/** Insert here the definition of the input and output of the model */
-//	float minimum_cycle_duration <- 0.04;
-	parameter "Paramètre d'expérience" var: experiment_type <- "GIS";
-	
-	parameter "Shapefile for buildings:" var: shape_file_buildings category: "GIS";
-	parameter "Shapefile for roads:" var: shape_file_roads category: "GIS";
-	parameter "Shapefile for bounds:" var: shape_file_buildings category: "GIS";
-	
-	parameter "Number of people agents" var: nb_people category: "People";
-	
-	
-	
-	output {
-		display city_display type: 3d{
-			grid mosquito_cell;
-			species building aspect:base transparency: 0.5;
-			species road aspect:base;
-			species human aspect: GIS_aspect;
-			species lake aspect:default;
-			
-			
-		}
-		
-	}
+
+
+experiment GIS type: gui {
+
+/** Insert here the definition of the input and output of the model */
+
+// float minimum_cycle_duration <- 0.04;
+
+parameter "Paramètre d'expérience" var: experiment_type <- "GIS";
+
+
+
+parameter "Shapefile for buildings:" var: shape_file_buildings category: "GIS";
+
+parameter "Shapefile for roads:" var: shape_file_roads category: "GIS";
+
+parameter "Shapefile for bounds:" var: shape_file_buildings category: "GIS";
+
+
+parameter "Number of people agents" var: nb_people category: "People";
+
+
+
+
+output {
+
+display city_display type: 3d{
+
+grid mosquito_cell;
+
+species building aspect:base transparency: 0.5;
+
+species road aspect:base;
+
+species human aspect: GIS_aspect;
+
+species lake aspect:default transparency: 0.5;
+
+
+
 }
-experiment experiment_grid type:gui {
-	string experiment_type <- "grid";
+
+display series {
+
+chart "Population" type:series {
+
+data "Sick people" value: human count each.is_sick color: #red;
+
+data "Cured people" value: human count each.is_cured color: #lightblue;
+
+data "Dead people" value: human count !each.is_alive color:#black;
+
+data "Not sick people" value: human count !each.is_sick color:#green;
+
+}
+
 }
 
 
+}
 
-/* Insert your model definition here */
+}
 
+experiment GRID type:gui {
+
+parameter "Paramètre d'expérience" var: experiment_type <- "grid";
+
+
+output {
+
+display main_display {
+
+grid mosquito_cell ;
+
+species human_grid aspect:large;
+
+species lake transparency:0.5;
+
+
+
+
+
+
+}
+
+display series {
+
+chart "Population" type:series {
+
+data "Sick people" value: human_grid count each.is_sick color: #red;
+
+data "Cured people" value: human_grid count each.is_cured color: #lightblue;
+
+data "Dead people" value: human_grid count !each.is_alive color:#black;
+
+data "Not sick people" value: human_grid count !each.is_sick color:#green;
+
+}
+
+}
+
+
+}
+
+}
