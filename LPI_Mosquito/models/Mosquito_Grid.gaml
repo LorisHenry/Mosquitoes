@@ -77,7 +77,7 @@ global {
 		if experiment_type = "GIS" {
 			
 			
-			step <- 1#mn;
+			step <- 10#mn;
 			create road from: shape_file_roads;
 			the_graph <- as_edge_graph(road);
 			
@@ -373,9 +373,10 @@ experiment mytrafficmodel1 type: gui {
 	output {
 		display city_display type: 3d{
 			grid mosquito_cell;
-			species building aspect:base;
+			species building aspect:base transparency: 0.5;
 			species road aspect:base;
 			species human aspect: GIS_aspect;
+			species lake aspect:default;
 			
 			
 		}
